@@ -157,6 +157,33 @@ start with self-defeating parameters (e.g. sub-1:1 reward:risk).
 - **Weekly stop (deployment layer):** two max-loss days in one week ⇒ no trading for the rest of the week.
   Session-scoped code cannot see the week; the scheduler that launches sessions owns this rule.
 
+## 9b. Replay harness (running the sim gate)
+
+`replay.py` + `polygon_data.py` implement the §10 sim gate over Polygon.io historical data:
+
+```bash
+export POLYGON_API_KEY=...
+# one session (discovers that day's gappers, builds 09:25 snapshots, replays RTH bars)
+python -m tradingagents.strategies.ross_cameron.replay --date 2026-07-08
+# a month, compounding equity and chaining the G1 size-down across sessions
+python -m tradingagents.strategies.ross_cameron.replay --start 2026-06-01 --end 2026-06-30 --json june.json
+# free API tier: stay under 5 requests/minute (responses are cached, re-runs are free)
+python -m tradingagents.strategies.ross_cameron.replay --date 2026-07-08 --throttle 12.5
+```
+
+Point-in-time honesty rules the harness enforces:
+- the 09:25 snapshot uses **pre-market bars only** (price, pre-market high, cumulative volume) and
+  information knowable before the open (prior closes, 30-day average volume, overnight headlines) — no
+  lookahead into the session being traded;
+- candidate discovery reproduces the raw gap scanner (gap ≥4% vs. the previous *trading* day, loose price
+  band, ≥500k shares) and leaves the real screening to the Five Pillars;
+- relative volume at scan time is pre-market volume over the 30-day average — stricter than intraday RVOL,
+  which biases toward fewer candidates (the conservative direction);
+- float uses Polygon shares outstanding (overstates float → biases toward rejection); dilution flags are
+  unavailable and stay empty — G6 remains an EDGAR integration item;
+- the aggregate report (`RangeResult.metrics()`) provides exactly the §10 gate numbers: profit factor,
+  win rate, max drawdown on the compounded equity curve, and max-loss-day count.
+
 ## 10. Promotion gates (sim → paper → live-micro)
 
 | Gate | Requirement before advancing |
@@ -181,7 +208,34 @@ the strategy fails the gate — that is precisely the backtest mirage documented
    when they matter (ties to G6).
 5. **Single-position focus** leaves capacity unused on multi-gapper days; deliberate for v0.1.
 
-## 12. Compliance and honesty notes
+## 12. Roadmap: capturing the discretionary layer
+
+The taught strategy has a discretionary layer (tape reading, "catalyst feel") this spec deliberately replaced
+with stricter mechanical rules. Cameron's public content — thousands of hours of narrated live trading and
+recap videos — makes parts of it learnable, in increasing order of ambition:
+
+1. **Rule mining from transcripts (cheap, high yield).** Pull public video transcripts, LLM-extract his
+   stated heuristics (when he skips a trade, what makes news "good", reversal-time habits, red flags like
+   recent offerings or one-and-done pops), and distill them into (a) a catalyst-grading rubric and (b)
+   additional mechanical vetoes for this engine. Must sample his red-day/loss videos too, or the mined rules
+   inherit selection bias.
+2. **Catalyst grading (closes §11.2).** "Catalyst feel" is mostly a taxonomy he says out loud: FDA approval >
+   phase data > contract win > partnership > vague PR, weighted by recency, magnitude, and float context.
+   That converts into a graded score — deterministic keyword taxonomy first, optionally a TradingAgents News
+   Analyst LLM pass — with the pillar requiring grade ≥ B instead of a boolean.
+3. **Tape-reading proxies (partial).** True tape reading needs Level 2 depth; Polygon trades/quotes (paid
+   tiers) support proxies for what he verbalizes: buying acceleration into the trigger, prints at the ask vs.
+   bid, repeated rejections at one offer ("big seller"), halt-resume behavior. These become entry-confirmation
+   filters, not judgment.
+4. **Behavioral cloning from screen recordings (research-grade; not recommended next).** Vision models over
+   recorded Level 2 + his executions. Expensive to label, fragile out of regime, ToS-sensitive at scale, and
+   it imports a survivor's reflexes without his adaptivity.
+
+The honest boundary: the sub-second reflex component is exactly the part the replication-gap research says
+does not transfer. This system's counter is structural (no-chase guard, pessimistic fills, participation
+caps) — it refuses the situations where reflexes decide the outcome, rather than pretending to have them.
+
+## 13. Compliance and honesty notes
 
 - The FTC action against Warrior Trading was about *marketing outcomes*, and the base-rate research is
   unambiguous: most people who trade this style lose. This system's guardrails bound losses; they do not
