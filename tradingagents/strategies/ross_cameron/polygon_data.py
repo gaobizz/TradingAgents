@@ -93,7 +93,14 @@ class PolygonClient:
         for attempt in range(self.max_retries + 1):
             if self.throttle_seconds:
                 time_module.sleep(self.throttle_seconds)
-            response = self._session.get(_BASE_URL + path, params=params, timeout=30)
+            try:
+                response = self._session.get(_BASE_URL + path, params=params, timeout=30)
+            except Exception as exc:  # transport failure (DNS, proxy, timeout)
+                if attempt < self.max_retries:
+                    time_module.sleep(delay)
+                    delay *= 2
+                    continue
+                raise PolygonError(f"network error calling {path}: {exc}") from exc
             if response.status_code == 200:
                 payload = response.json()
                 cache_file.write_text(json.dumps(payload))

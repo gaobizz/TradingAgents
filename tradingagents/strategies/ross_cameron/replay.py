@@ -285,34 +285,49 @@ def main(argv: list[str] | None = None) -> int:
     if not args.date and not (args.start and args.end):
         parser.error("provide --date, or --start and --end")
 
-    from .polygon_data import PolygonClient
+    try:
+        from .polygon_data import PolygonClient, PolygonError
+    except ImportError as exc:
+        print(f"error: missing dependency ({exc}); run: pip install requests")
+        return 1
 
-    client = PolygonClient(cache_dir=args.cache_dir, throttle_seconds=args.throttle)
+    try:
+        client = PolygonClient(cache_dir=args.cache_dir, throttle_seconds=args.throttle)
+    except PolygonError as exc:
+        print(f"error: {exc}")
+        print("get a key at https://polygon.io, then: export POLYGON_API_KEY=<your key>")
+        return 1
     cfg = DEFAULT_CONFIG
 
-    if args.date:
-        day = date_type.fromisoformat(args.date)
-        symbols = None
-        if args.symbols:
-            prev_day = previous_trading_day(client, day)
-            prev = client.grouped_daily(prev_day) if prev_day else {}
-            symbols = [
-                (s, prev[s]["close"]) for s in args.symbols.split(",") if s in prev
-            ]
-        report, watchlist = replay_session(client, day, cfg, equity=args.equity, symbols=symbols)
-        payload = _session_summary(day, report, watchlist, 1.0) | {"metrics": report.metrics()}
-    else:
-        result = replay_range(
-            client, date_type.fromisoformat(args.start), date_type.fromisoformat(args.end),
-            cfg, equity=args.equity,
-        )
-        payload = {"metrics": result.metrics(), "sessions": result.sessions}
-        for session in result.sessions:
-            print(
-                f"{session['date']}  watchlist={len(session['watchlist']):>2}  "
-                f"trades={len(session['trades']):>2}  pnl={session['net_pnl']:>+10.2f}"
-                f"{'  [MAX LOSS]' if session['halted'] else ''}"
+    try:
+        if args.date:
+            day = date_type.fromisoformat(args.date)
+            symbols = None
+            if args.symbols:
+                prev_day = previous_trading_day(client, day)
+                prev = client.grouped_daily(prev_day) if prev_day else {}
+                symbols = [
+                    (s, prev[s]["close"]) for s in args.symbols.split(",") if s in prev
+                ]
+            report, watchlist = replay_session(client, day, cfg, equity=args.equity, symbols=symbols)
+            payload = _session_summary(day, report, watchlist, 1.0) | {"metrics": report.metrics()}
+        else:
+            result = replay_range(
+                client, date_type.fromisoformat(args.start), date_type.fromisoformat(args.end),
+                cfg, equity=args.equity,
             )
+            payload = {"metrics": result.metrics(), "sessions": result.sessions}
+            for session in result.sessions:
+                print(
+                    f"{session['date']}  watchlist={len(session['watchlist']):>2}  "
+                    f"trades={len(session['trades']):>2}  pnl={session['net_pnl']:>+10.2f}"
+                    f"{'  [MAX LOSS]' if session['halted'] else ''}"
+                )
+    except PolygonError as exc:
+        print(f"error: {exc}")
+        print("(HTTP 401/403 usually means a wrong key or a plan without this data; "
+              "429 means rate limit — add --throttle 12.5 on the free tier)")
+        return 1
 
     print(json.dumps(payload.get("metrics", {}), indent=2))
     if args.json_out:
