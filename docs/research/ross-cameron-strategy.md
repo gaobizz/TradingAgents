@@ -269,6 +269,10 @@ not typical.
 
 ## 9. Criticisms, controversies, and the replicability question
 
+> Deep dive: the mechanisms behind "the vast majority of customers lost money" — behavioral biases, the cost
+> stack, dilution dynamics, and the replication gap — are documented with sources in the companion report
+> [`why-retail-traders-lose.md`](./why-retail-traders-lose.md).
+
 ### The FTC case (the central controversy)
 
 - **April 2022:** the FTC sued Warrior Trading and Ross Cameron, alleging deceptive earnings claims in
