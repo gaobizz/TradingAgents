@@ -9,7 +9,7 @@ chained across sessions.
 import dataclasses
 
 import pytest
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from tradingagents.strategies.ross_cameron import Bar, CameronConfig
 from tradingagents.strategies.ross_cameron.replay import (
@@ -80,7 +80,9 @@ class FakeClient:
         return self.shares.get(symbol, 0)
 
     def news_headlines(self, symbol, published_gte, published_lte):
-        return self.news.get(symbol, [])
+        # Published two hours before the window end (i.e. fresh at scan time).
+        published = published_lte.replace(tzinfo=None) - timedelta(hours=2)
+        return [(title, published) for title in self.news.get(symbol, [])]
 
 
 def grouped_row(open_, close, volume=6_000_000):
@@ -154,7 +156,15 @@ class TestSnapshot:
         assert snap.relative_volume == 6.0
         assert snap.day_change_pct == 25.0
         assert snap.has_news_catalyst
+        assert snap.catalyst_grade == "A"              # fresh FDA approval
         assert snap.float_shares == 15_000_000
+
+    def test_offering_news_vetoes_and_flags_dilution(self):
+        client = make_client()
+        client.news["TEST"] = ["Company prices $10 million public offering"]
+        snap = build_snapshot(client, "TEST", DAY2, prev_close=4.00, cfg=CFG)
+        assert snap.catalyst_grade == "F"
+        assert snap.dilution_flags == ("news:dilution_offering",)
 
     def test_no_premarket_tape_means_no_snapshot(self):
         client = make_client()

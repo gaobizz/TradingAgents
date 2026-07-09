@@ -29,6 +29,9 @@ class CameronConfig:
     min_relative_volume: float = 5.0        # pillar 1: 5x 30-day average
     max_float_shares: int = 20_000_000      # pillar 5: low float preferred
     require_catalyst: bool = True           # pillar 3: news catalyst
+    min_catalyst_grade: str = "C"           # pillar 3 (graded): when a snapshot
+                                            # carries a catalyst grade, require
+                                            # at least this letter (A best)
     min_gap_pct: float = 4.0                # pre-market gap scan threshold
     block_dilution_flagged: bool = True     # G6: issuer sells the spike
     max_watchlist_size: int = 5             # focus: a handful of A+ names
@@ -95,6 +98,8 @@ class CameronConfig:
             problems.append("rehab_risk_multiplier must be in (0, 1]")
         if self.flag_min_pullback_bars > self.flag_max_pullback_bars:
             problems.append("bull-flag pullback bar range is inverted")
+        if self.min_catalyst_grade not in ("A", "B", "C", "D", "F"):
+            problems.append("min_catalyst_grade must be one of A/B/C/D/F")
         if self.no_entries_after <= self.entries_start:
             problems.append("no_entries_after must be later than entries_start")
         if problems:

@@ -10,6 +10,13 @@ This package simulates decisions over bar data. It does not connect to a
 broker, and nothing in it is financial advice.
 """
 
+from .catalyst import (
+    CatalystGrade,
+    grade_catalyst,
+    grade_headline,
+    make_llm_grader,
+    meets_minimum_grade,
+)
 from .config import CameronConfig, DEFAULT_CONFIG
 from .engine import CameronEngine, SessionReport
 from .models import (
@@ -37,6 +44,7 @@ __all__ = [
     "Bar",
     "CameronConfig",
     "CameronEngine",
+    "CatalystGrade",
     "DEFAULT_CONFIG",
     "ExitReason",
     "Fill",
@@ -55,5 +63,9 @@ __all__ = [
     "detect_intraday",
     "detect_micro_pullback",
     "detect_opening_range_breakout",
+    "grade_catalyst",
+    "grade_headline",
+    "make_llm_grader",
+    "meets_minimum_grade",
     "screen_snapshot",
 ]

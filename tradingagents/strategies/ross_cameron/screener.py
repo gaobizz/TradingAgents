@@ -9,6 +9,7 @@ decision is auditable after the fact.
 
 from __future__ import annotations
 
+from .catalyst import meets_minimum_grade
 from .config import CameronConfig
 from .models import GapperSnapshot, ScreenResult
 
@@ -34,8 +35,15 @@ def screen_snapshot(snapshot: GapperSnapshot, cfg: CameronConfig) -> ScreenResul
         failed.append(PILLAR_RELATIVE_VOLUME)
     if snapshot.float_shares <= 0 or snapshot.float_shares > cfg.max_float_shares:
         failed.append(PILLAR_FLOAT)
-    if cfg.require_catalyst and not snapshot.has_news_catalyst:
-        failed.append(PILLAR_CATALYST)
+    if cfg.require_catalyst:
+        # Graded path (catalyst.py) when a grade is present; legacy boolean
+        # otherwise. A veto grade ("F") always fails here as well as in the
+        # dilution check below.
+        if snapshot.catalyst_grade:
+            if not meets_minimum_grade(snapshot.catalyst_grade, cfg.min_catalyst_grade):
+                failed.append(PILLAR_CATALYST)
+        elif not snapshot.has_news_catalyst:
+            failed.append(PILLAR_CATALYST)
     if snapshot.gap_pct < cfg.min_gap_pct:
         failed.append(CHECK_GAP)
     # G6: refuse candidates where the issuer is positioned to sell the spike.

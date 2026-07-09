@@ -90,8 +90,15 @@ def discover_candidates(
 # Point-in-time snapshot (what the 09:25 scanner would have shown)
 # ---------------------------------------------------------------------------
 def build_snapshot(
-    client, symbol: str, day: date_type, prev_close: float, cfg: CameronConfig
+    client,
+    symbol: str,
+    day: date_type,
+    prev_close: float,
+    cfg: CameronConfig,
+    grader=None,
 ) -> GapperSnapshot | None:
+    """Point-in-time 09:25 snapshot. ``grader`` defaults to the deterministic
+    catalyst grader; pass ``catalyst.make_llm_grader(model)`` to upgrade."""
     bars = client.minute_bars(symbol, day)
     scan_bars = [b for b in bars if b.ts.time() < SCAN_TIME]
     if not scan_bars or prev_close <= 0:
@@ -106,10 +113,17 @@ def build_snapshot(
     recent = lookback[-30:]
     avg_volume = int(sum(d["volume"] for d in recent) / len(recent)) if recent else 0
 
+    from .catalyst import VETO_CATEGORIES, grade_catalyst
     from .polygon_data import premarket_window
 
     news_start, news_end = premarket_window(day)
     headlines = client.news_headlines(symbol, news_start, news_end)
+    scan_dt = datetime.combine(day, SCAN_TIME)
+    grade = (grader or grade_catalyst)(headlines, scan_dt)
+
+    # A news veto (offering/reverse split/going concern) doubles as a
+    # dilution flag — partial G6 coverage until an EDGAR feed exists.
+    dilution_flags = (f"news:{grade.category}",) if grade.category in VETO_CATEGORIES else ()
 
     return GapperSnapshot(
         symbol=symbol,
@@ -122,8 +136,9 @@ def build_snapshot(
         day_volume=pm_volume,         # pre-market cumulative volume only (honest)
         float_shares=client.shares_outstanding(symbol),
         has_news_catalyst=bool(headlines),
-        catalyst_headline=headlines[0] if headlines else "",
-        dilution_flags=(),            # not available from Polygon; spec §11 open item
+        catalyst_headline=grade.headline or (headlines[0][0] if headlines else ""),
+        catalyst_grade=grade.grade,
+        dilution_flags=dilution_flags,
     )
 
 
@@ -141,12 +156,13 @@ def replay_session(
     equity: float = 30_000.0,
     carryover_multiplier: float = 1.0,
     symbols: list[tuple[str, float]] | None = None,
+    grader=None,
 ) -> tuple[SessionReport, list[str]]:
     """Replay one session; returns the report and the watchlist symbols."""
     pairs = symbols if symbols is not None else discover_candidates(client, day, cfg)
     snapshots = []
     for symbol, prev_close in pairs:
-        snapshot = build_snapshot(client, symbol, day, prev_close, cfg)
+        snapshot = build_snapshot(client, symbol, day, prev_close, cfg, grader=grader)
         if snapshot is not None:
             snapshots.append(snapshot)
 
@@ -227,6 +243,7 @@ def replay_range(
     end: date_type,
     cfg: CameronConfig = DEFAULT_CONFIG,
     equity: float = 30_000.0,
+    grader=None,
 ) -> RangeResult:
     """Replay every trading day in [start, end], compounding equity and
     chaining the G1 size-down carryover across sessions."""
@@ -236,7 +253,8 @@ def replay_range(
     while day <= end:
         if day.weekday() < 5:
             report, watchlist = replay_session(
-                client, day, cfg, equity=equity, carryover_multiplier=carryover
+                client, day, cfg, equity=equity, carryover_multiplier=carryover,
+                grader=grader,
             )
             # Distinguish "market closed" (no candidates, no bars) from a
             # traded-but-flat day: only record days the market was open.

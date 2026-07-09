@@ -45,6 +45,8 @@ class GapperSnapshot:
     float_shares: int
     has_news_catalyst: bool
     catalyst_headline: str = ""
+    catalyst_grade: str = ""               # "A".."F" from catalyst.grade_catalyst;
+                                           # empty = ungraded (boolean pillar only)
     dilution_flags: tuple[str, ...] = ()   # e.g. ("S-3 shelf", "active ATM")
     halted: bool = False
 

@@ -167,8 +167,8 @@ class PolygonClient:
 
     def news_headlines(
         self, symbol: str, published_gte: datetime, published_lte: datetime
-    ) -> list[str]:
-        """Headlines for the catalyst window, oldest first."""
+    ) -> list[tuple[str, datetime | None]]:
+        """(headline, published ET) pairs for the catalyst window, oldest first."""
         payload = self._get(
             "/v2/reference/news",
             {
@@ -179,7 +179,21 @@ class PolygonClient:
                 "limit": 20,
             },
         )
-        return [row.get("title", "") for row in payload.get("results") or [] if row.get("title")]
+        items: list[tuple[str, datetime | None]] = []
+        for row in payload.get("results") or []:
+            title = row.get("title")
+            if not title:
+                continue
+            published = None
+            raw = row.get("published_utc")
+            if raw:
+                try:
+                    parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                    published = parsed.astimezone(_EASTERN).replace(tzinfo=None)
+                except ValueError:
+                    published = None
+            items.append((title, published))
+        return items
 
 
 def premarket_window(day: date_type) -> tuple[datetime, datetime]:

@@ -184,6 +184,39 @@ Point-in-time honesty rules the harness enforces:
 - the aggregate report (`RangeResult.metrics()`) provides exactly the §10 gate numbers: profit factor,
   win rate, max drawdown on the compounded equity curve, and max-loss-day count.
 
+## 9c. Catalyst grader and transcript miner (the discretionary layer, v1)
+
+**Catalyst grader** (`catalyst.py`) upgrades pillar 3 from a boolean to a letter grade:
+
+- Taxonomy tiers: **A** (FDA approval/clearance, phase-3 success, buyout/merger, $-quantified major
+  contracts) · **B** (earnings beat/raised guidance, positive early-phase data, uplisting, granted patent,
+  megacap partnership) · **C** (LOI/MOU, launches, upgrades, generic partnerships) · **D** (conference/IR
+  fluff, unclassifiable PR) · **F/veto** (offering/dilution, reverse split, going concern).
+- Modifiers: staleness decays the score (>18h −10, >48h −25), $/% quantification +5, corroborating
+  headlines +5. Every grade carries human-readable ``reasons`` for the audit trail.
+- **Vetoes are guardrails, not opinions**: any dilution-type headline forces F for the whole window *and*
+  populates the snapshot's dilution flags (partial G6 coverage from news until an EDGAR feed exists), and
+  the optional LLM grader (`make_llm_grader(model)`, langchain `.invoke` duck-typed, deterministic fallback
+  on any error) is structurally unable to override a veto.
+- Screener rule: graded snapshots must meet ``min_catalyst_grade`` (default C; set B for strict); ungraded
+  snapshots fall back to the boolean pillar. The replay harness grades automatically from Polygon headlines.
+
+**Transcript miner** (`transcripts.py`) feeds the taxonomy from his public narration:
+
+```bash
+python -m tradingagents.strategies.ross_cameron.transcripts \
+    --transcript-dir ./transcripts --out mined_rules.md --json mined_rules.json
+```
+
+Loads transcripts from a directory (``.txt``/``.json``, e.g. via yt-dlp) or fetches captions for given video
+ids (optional ``youtube-transcript-api``), chunks them, LLM-extracts **explicitly stated** rules only (verbatim
+quote required, no inference), dedupes into an occurrence-weighted catalog grouped by category
+(stock_selection, catalyst_quality, entry/exit tactics, risk, psychology, red_flags, regime), and emits
+markdown + JSON. Rules from loss/red-day discussions are tagged, and the report warns loudly when a mining
+run contains none — a highlight-reel-only catalog inherits survivorship bias by construction. Mined
+catalyst-quality rules are the intended refinement loop for the taxonomy above; mined red-flag rules are
+candidate engine vetoes, pending replay validation.
+
 ## 10. Promotion gates (sim → paper → live-micro)
 
 | Gate | Requirement before advancing |
@@ -199,9 +232,9 @@ the strategy fails the gate — that is precisely the backtest mirage documented
 
 1. **LULD halts:** low-float gappers halt constantly; halt-resume gaps can jump a stop by 20%+. Needs a halt
    feed and resume logic before any live order.
-2. **Catalyst quality:** `has_news_catalyst` is a boolean; a stale PR and an FDA approval currently look the
-   same. Candidate: route headlines through the TradingAgents News Analyst for a catalyst grade, and require
-   grade ≥ B for the pillar to pass.
+2. **Catalyst quality:** ~~`has_news_catalyst` is a boolean~~ — **addressed in v0.2** by the catalyst grader
+   (§9c): graded A–F with staleness decay and dilution vetoes, `min_catalyst_grade` config (default C), and
+   an optional LLM grader. Remaining: refine the taxonomy from transcript-miner output at scale.
 3. **Short-sale restriction / SSR and locate dynamics** are unmodeled (long-only mitigates but squeeze
    mechanics affect longs too).
 4. **Float data quality:** float figures from free vendors are often stale after offerings — which is exactly
@@ -214,15 +247,12 @@ The taught strategy has a discretionary layer (tape reading, "catalyst feel") th
 with stricter mechanical rules. Cameron's public content — thousands of hours of narrated live trading and
 recap videos — makes parts of it learnable, in increasing order of ambition:
 
-1. **Rule mining from transcripts (cheap, high yield).** Pull public video transcripts, LLM-extract his
-   stated heuristics (when he skips a trade, what makes news "good", reversal-time habits, red flags like
-   recent offerings or one-and-done pops), and distill them into (a) a catalyst-grading rubric and (b)
-   additional mechanical vetoes for this engine. Must sample his red-day/loss videos too, or the mined rules
-   inherit selection bias.
-2. **Catalyst grading (closes §11.2).** "Catalyst feel" is mostly a taxonomy he says out loud: FDA approval >
-   phase data > contract win > partnership > vague PR, weighted by recency, magnitude, and float context.
-   That converts into a graded score — deterministic keyword taxonomy first, optionally a TradingAgents News
-   Analyst LLM pass — with the pillar requiring grade ≥ B instead of a boolean.
+1. **Rule mining from transcripts — IMPLEMENTED (§9c, `transcripts.py`).** Pipeline ships; the remaining
+   work is running it over a large, red-day-inclusive video sample and folding the mined catalyst-quality
+   rules and red-flag vetoes back into the taxonomy and engine config.
+2. **Catalyst grading — IMPLEMENTED (§9c, `catalyst.py`).** Graded A–F pillar with staleness decay,
+   quantification/corroboration bonuses, dilution vetoes that double as G6 flags, and an optional LLM
+   grader that cannot override vetoes.
 3. **Tape-reading proxies (partial).** True tape reading needs Level 2 depth; Polygon trades/quotes (paid
    tiers) support proxies for what he verbalizes: buying acceleration into the trigger, prints at the ask vs.
    bid, repeated rejections at one offer ("big seller"), halt-resume behavior. These become entry-confirmation
