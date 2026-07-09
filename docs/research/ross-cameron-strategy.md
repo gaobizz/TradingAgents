@@ -222,6 +222,51 @@ his own stats: losers are held *longer* than winners — even for him, cutting l
 
 ---
 
+## 8b. What annual rate of return does this imply?
+
+Short version: **the strategy does not have a scale-invariant annual return.** It produces a roughly fixed
+*dollar* edge (expectancy per trade × trades per day), so percentage return collapses as capital grows. Any
+single "X% per year" number is meaningless without an account size attached.
+
+### His realized numbers (from the audited cumulative figures)
+
+| Window | From → To | Multiple | Implied annualized return |
+|---|---|---|---|
+| Calendar 2017 | $583.15 → ~$335,000 | ×574 | **≈ +57,000% (year one)** |
+| Jan 2017 → May 2019 ($1M mark) | $583.15 → $1.0M | ×1,715 (~2.4 yrs) | ≈ ×22–23/yr ≈ **+2,100%/yr** |
+| Jan 2017 → Dec 2025 (full record) | $583.15 → $18,810,638 cumulative | ×32,257 (9 yrs) | ≈ ×3.17/yr ≈ **+217%/yr CAGR** |
+
+Cumulative audited profits: **$10.73M through Dec 2023**, **$18.81M through Dec 2025**
+([verified earnings](https://www.warriortrading.com/ross-camerons-verified-day-trading-earnings/),
+[2024](https://www.warriortrading.com/verified-earnings-2024/) / [2025 statements](https://www.warriortrading.com/verified-earnings-2025/),
+[net-worth analysis](https://www.financialtechwiz.com/post/ross-cameron-net-worth/)). These "CAGR" figures are
+stylized — in practice profits are withdrawn rather than fully compounded, which is exactly the point: the
+stable quantity is **dollar income, not percentage return**. In dollar terms his record reads: ~$335k (2017),
+~$1.7M/yr average 2018–2023, ~$4M/yr average 2024–2025 (hot momentum tape).
+
+### Why percentage return falls as the account grows
+
+The strategy's capacity ceiling (low-float small caps tolerate only low-six-figure position sizes before the
+order *is* the move) means the same skill that returned +57,000% on $583 produces low-hundreds-of-percent on
+low-seven-figure working capital, and would produce near-index-like returns on institutional size — which is
+why no fund runs this and why the edge persists for individuals.
+
+### The honest "predicted" return, by scenario
+
+- **A random person adopting the strategy (unconditional expectation): negative.** Per the FTC complaint, the
+  vast majority of Warrior Trading customer accounts lost money; academic base rates put sustained day-trading
+  profitability at ~1–3% of participants. The median outcome is loss of most risk capital plus course costs.
+- **Conditioned on being one of the few skilled, disciplined executors on small capital (<$100k):** the
+  strategy's own arithmetic (~70% win rate, ≥2:1 reward/risk, tight dollar risk, many trades/day) supports
+  high-double-digit to low-triple-digit percent annual returns, degrading with account size. Cameron's ×574
+  first year is the extreme right tail of the right tail — the reason he is famous, not the expectation.
+- **As a fund-style scalable strategy: not applicable.** The FTC specifically challenged the "scalable" claim;
+  the capacity ceiling is structural.
+
+Benchmark for calibration: the S&P 500's long-run total return is ~10%/yr. Warrior Trading is now legally
+prohibited from making unsubstantiated earnings-potential claims, and its own disclosures state results are
+not typical.
+
 ## 9. Criticisms, controversies, and the replicability question
 
 ### The FTC case (the central controversy)
